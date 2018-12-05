@@ -27,14 +27,13 @@ single VM deployment.
 #### Create a Service Account
 
 In order for `bbl` to interact with GCP, a service account must be created.
+```
+gcloud iam service-accounts create <service account name>
 
-    ```
-    gcloud iam service-accounts create <service account name>
+gcloud iam service-accounts keys create --iam-account='<service account name>@<project id>.iam.gserviceaccount.com' <service account name>.key.json
 
-    gcloud iam service-accounts keys create --iam-account='<service account name>@<project id>.iam.gserviceaccount.com' <service account name>.key.json
-
-    gcloud projects add-iam-policy-binding <project id> --member='serviceAccount:<service account name>@<project id>.iam.gserviceaccount.com' --role='roles/editor'
-    ```
+gcloud projects add-iam-policy-binding <project id> --member='serviceAccount:<service account name>@<project id>.iam.gserviceaccount.com' --role='roles/editor'
+```
 
 #### Pave Infrastructure, Create a Jumpbox, and Create a BOSH Director for Concourse use
 
@@ -76,7 +75,7 @@ bosh deploy -d concourse concourse.yml \
     -v external_host="${EXTERNAL_HOST}" \
     -v concourse_password=concourse \
     -v concourse_vm_type=small \
-    -v concourse_persistent_disk_type=10GB \
+    -v concourse_persistent_disk_type=100GB \
     -v network_name=default \
     -v web_network_vm_extension=lb \
     -v deployment_name=concourse \
