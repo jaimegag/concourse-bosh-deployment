@@ -47,7 +47,7 @@ gcloud projects add-iam-policy-binding <project id> --member='serviceAccount:<se
 
 1. Create infrastructure, jumpbox, and bosh director.
     ```
-    bbl plan —lb-type concourse
+    bbl plan —-lb-type concourse
     bbl up
     ```
 
