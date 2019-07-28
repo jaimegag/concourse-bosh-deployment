@@ -1,0 +1,262 @@
+instance_groups:
+- azs:
+  - z1
+  instances: 1
+  jobs:
+  - name: bpm
+    release: bpm
+  - name: web
+    properties:
+      add_local_users:
+        concourse: concourse
+      bind_port: 80
+      credhub:
+        client_id: concourse_to_credhub
+        client_secret: ((concourse_to_credhub_secret))
+        tls:
+          ca_cert:
+            certificate: ((atc_tls.ca))
+        url: https://104.196.101.207:8844
+      external_url: https://104.196.101.207
+      main_team:
+        auth:
+          local:
+            users:
+            - concourse
+      postgresql:
+        database: atc
+        host: 127.0.0.1
+        role:
+          name: atc
+          password: ((postgres_password))
+        sslmode: disable
+      tls_bind_port: 443
+      tls_cert: ((atc_tls.certificate))
+      tls_key: ((atc_tls.private_key))
+      token_signing_key: ((token_signing_key))
+      worker_gateway:
+        authorized_keys:
+        - ((worker_key.public_key))
+        host_key: ((tsa_host_key))
+    release: concourse
+  - name: postgres
+    properties:
+      databases:
+        databases:
+        - name: atc
+        - name: credhub
+        - name: uaa
+        port: 5432
+        roles:
+        - name: atc
+          password: ((postgres_password))
+        - name: credhub
+          password: ((credhub-db-password))
+        - name: uaa
+          password: ((uaa-db-password))
+    release: postgres
+  - name: worker
+    properties:
+      drain_timeout: 10m
+      garden:
+        allow_host_access: true
+      worker_gateway:
+        host_public_key: ((tsa_host_key.public_key))
+        hosts:
+        - 127.0.0.1:2222
+        worker_key: ((worker_key))
+    release: concourse
+  - name: uaa
+    properties:
+      encryption:
+        active_key_label: KEY-1
+        encryption_keys:
+        - label: KEY-1
+          passphrase: ((encryption-keys-passphrase))
+      login:
+        saml:
+          serviceProviderCertificate: ((atc_tls.certificate))
+          serviceProviderKey: ((atc_tls.private_key))
+          serviceProviderKeyPassword: ""
+      uaa:
+        admin:
+          client_secret: ((uaa-admin))
+        clients:
+          concourse_to_credhub:
+            access-token-validity: 1200
+            authorities: credhub.read,credhub.write
+            authorized-grant-types: client_credentials
+            override: true
+            refresh-token-validity: 3600
+            scope: ""
+            secret: ((concourse_to_credhub_secret))
+          credhub_cli:
+            access-token-validity: 1200
+            authorities: uaa.resource
+            authorized-grant-types: password,refresh_token
+            override: true
+            refresh-token-validity: 3600
+            scope: credhub.read,credhub.write
+            secret: ""
+        jwt:
+          policy:
+            active_key_id: key-1
+            keys:
+              key-1:
+                signingKey: ((uaa-jwt.private_key))
+          revocable: true
+        logging_level: INFO
+        login:
+          client_secret: ((uaa-login))
+        port: 8181
+        scim:
+          users:
+          - groups:
+            - scim.write
+            - scim.read
+            - bosh.admin
+            - credhub.read
+            - credhub.write
+            name: admin
+            password: ((uaa-users-admin))
+        sslCertificate: ((atc_tls.certificate))
+        sslPrivateKey: ((atc_tls.private_key))
+        url: https://104.196.101.207:8443
+        zones:
+          internal:
+            hostnames: []
+      uaadb:
+        databases:
+        - name: uaa
+          tag: uaa
+        db_scheme: postgresql
+        port: 5432
+        roles:
+        - name: uaa
+          password: ((uaa-db-password))
+          tag: admin
+    release: uaa
+  - name: credhub
+    properties:
+      credhub:
+        authentication:
+          uaa:
+            ca_certs:
+            - ((atc_tls.ca))
+            url: https://104.196.101.207:8443
+            verification_key: ((uaa-jwt.public_key))
+        data_storage:
+          database: credhub
+          password: ((credhub-db-password))
+          port: 5432
+          require_tls: false
+          type: postgres
+          username: credhub
+        encryption:
+          keys:
+          - active: true
+            encryption_password: ((credhub-encryption-password))
+            provider_name: int
+          providers:
+          - name: int
+            type: internal
+        log_level: debug
+        port: 8844
+        tls: ((atc_tls))
+    release: credhub
+  name: concourse
+  networks:
+  - name: default
+  persistent_disk_type: 100GB
+  stemcell: xenial
+  vm_extensions:
+  - lb
+  - 50GB_ephemeral_disk
+  vm_type: medium
+name: concourse
+releases:
+- name: concourse
+  sha1: e6b55fa88e1bcd0d7dfc83e73cb7dc6c053734ac
+  url: https://bosh.io/d/github.com/concourse/concourse-bosh-release?v=5.1.0
+  version: 5.1.0
+- name: bpm
+  sha1: 41df19697d6a69d2552bc2c132928157fa91abe0
+  url: https://bosh.io/d/github.com/cloudfoundry-incubator/bpm-release?v=1.0.4
+  version: 1.0.4
+- name: postgres
+  sha1: 3dd10b417b21cfa3257f1cc891e9e46f02fefe16
+  url: https://bosh.io/d/github.com/cloudfoundry/postgres-release?v=36
+  version: "36"
+- name: uaa
+  sha1: a7c14357ae484e89e547f4f207fb8de36d2b0966
+  url: https://bosh.io/d/github.com/cloudfoundry/uaa-release?v=60
+  version: 60
+- name: credhub
+  sha1: 648658efdef2ff18a69914d958bcd7ebfa88027a
+  url: https://bosh.io/d/github.com/pivotal-cf/credhub-release?v=1.9.3
+  version: 1.9.3
+stemcells:
+- alias: xenial
+  os: ubuntu-xenial
+  version: latest
+update:
+  canaries: 1
+  canary_watch_time: 30000-1200000
+  max_in_flight: 3
+  serial: false
+  update_watch_time: 5000-1200000
+variables:
+- name: postgres_password
+  type: password
+- name: token_signing_key
+  type: rsa
+- name: tsa_host_key
+  type: ssh
+- name: worker_key
+  type: ssh
+- name: atc_ca
+  options:
+    common_name: atcCA
+    is_ca: true
+  type: certificate
+- name: atc_tls
+  options:
+    alternative_names:
+    - 104.196.101.207
+    ca: atc_ca
+    common_name: 104.196.101.207
+  type: certificate
+- name: atc-db-password
+  type: password
+- name: credhub-encryption-password
+  options:
+    length: 40
+  type: password
+- name: credhub-db-password
+  type: password
+- name: uaa-jwt
+  options:
+    key_length: 4096
+  type: rsa
+- name: uaa-users-admin
+  type: password
+- name: uaa-admin
+  type: password
+- name: uaa-login
+  type: password
+- name: uaa-credhub-admin
+  type: password
+- name: uaa-db-admin
+  type: password
+- name: uaa-db-password
+  type: password
+- name: concourse_to_credhub_secret
+  type: password
+- name: credhub_cli_password
+  type: password
+- name: concourse_client_secret
+  type: password
+- name: encryption-keys-passphrase
+  options:
+    length: 40
+  type: password
